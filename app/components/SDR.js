@@ -36,6 +36,19 @@ export default class SDR extends Component {
   }
 
   handleData(msg, rinfo) {
+    // GNU Radio uses IEEE-754 Floating point for it's binary float format
+    // 1 bit Sign
+    // 8 bits Exponent
+    // 23 bits Mantissa
+    //
+    // Thus, a value of -1 will send these bytes, in order:
+    // 0x0
+    // 0x0
+    // 0x10000000 (exponent LSB and 7 mantissa bits)
+    // 0x10111111 (sign and 7 exponent bits)
+    //
+    // Thus, 32 bit value of -1 is:
+    // 0b10111111 10000000 00000000 00000000
     let byteString = ''
     let bytes = []
     let empty = true
