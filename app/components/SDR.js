@@ -36,6 +36,7 @@ export default class SDR extends Component {
   }
 
   handleData(msg, rinfo) {
+    // Floating point numbers:
     // GNU Radio uses IEEE-754 Floating point for it's binary float format
     // 1 bit Sign
     // 8 bits Exponent
@@ -44,11 +45,26 @@ export default class SDR extends Component {
     // Thus, a value of -1 will send these bytes, in order:
     // 0x0
     // 0x0
-    // 0x10000000 (exponent LSB and 7 mantissa bits)
-    // 0x10111111 (sign and 7 exponent bits)
+    // 0x128 = 0b10000000 (exponent LSB and 7 mantissa bits)
+    // 0x191 = 0b10111111 (sign and 7 exponent bits)
     //
     // Thus, 32 bit value of -1 is:
     // 0b10111111 10000000 00000000 00000000
+    //
+    // Complex numbers:
+    // Apparently, it's just two floats. One for real (sent first), one for
+    // imaginary (sent second)
+    //
+    // Thus, a value of (-1 + 1j) will send these bytes, in order:
+    // 0x0
+    // 0x0
+    // 0x128
+    // 0x191
+    // 0x0
+    // 0x0
+    // 0x128
+    // 0x63
+    //
     let byteString = ''
     let bytes = []
     let empty = true
@@ -63,6 +79,9 @@ export default class SDR extends Component {
       console.log(`length: ${msg.length} data: ${byteString}`)
       this.setState({ receivedCount: this.state.receivedCount + 1, rfData: bytes })
     }
+
+    // Only let one packet come through (so we don't flood the console)
+    this.stopListening()
   }
 
   startListening() {
