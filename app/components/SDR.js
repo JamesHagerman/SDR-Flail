@@ -73,6 +73,20 @@ export default class SDR extends Component {
     let byteString = ''
     let bytes = []
     let empty = true
+
+    // Convert the dgram's msg Buffer object to an ArrayBuffer:
+    var ab = new ArrayBuffer(msg.length);
+
+    // Build a DataView on that ArrayBuffer
+    // var view = new Uint8Array(ab);
+    let view = new DataView(ab);
+    for (var i = 0; i < msg.length; ++i) {
+        view[i] = msg[i];
+    }
+
+    // Use ArrayBuffer.getFloat32() to parse a float off of the buffer:
+    console.warn('oh man i am dumb', view.getFloat32(0))
+
     for (let i = 0; i < msg.length; i++) {
       if (empty) {
         empty = (msg[i] === 0)
@@ -106,13 +120,22 @@ export default class SDR extends Component {
 
     // Work variables:
     let i = isLE ? (nBytes - 1) : 0
+    // let sign =  (buffer[offset + i] >> 7) ? -1 : 1 // Convert sign bit using logic
+    let sign =  Math.pow(-1, (buffer[offset + i] >> 7)) // Convert sign bit using math (faster?)
+
     let exponentHigh = ((buffer[offset + i] & 0x7F) << 1)
     let exponentLow = ((buffer[offset + i - 1] & 0x80) >> 7)
     let exponent = exponentHigh | exponentLow
-    let sign =  (buffer[offset + i] >> 7) ? -1 : 1
 
-    // return [offset, i, sign, exponentHigh, exponentLow, exponent]
-    return exponent * sign
+    // Mantissa needs to be calculated. Usually this is done with a sum of decimal bit values
+    let mantissaLow = (buffer[offset + i - 2] << 8) | (buffer[offset + i - 3])
+    let mantissaHigh = ((buffer[offset + i - 1] ^ 0x80) << 16)
+    let mantissa = mantissaHigh | mantissaLow
+    // mantissa = (mantissa << 24) | 1
+    // mantissa = mantissa | (1 << 24)
+
+    console.log({offset, i, sign, exponent, mantissaLow, mantissaHigh, mantissa})
+    return sign * Math.pow(2, exponent) * mantissa
   }
 
   readComplex(buffer, offset) {
@@ -174,13 +197,13 @@ export default class SDR extends Component {
 
   updateCanvas() {
     // Test the float and complex data parser APIs:
-    let buffer = [0, 0, 128, 191, 0, 0, 128, 63]
-    console.log('float count:', this.countFloats(buffer))
-    console.log('testing readFloat:', this.readFloat(buffer, 0), this.readFloat(buffer, 1))
+    // let buffer = [0x00, 0x00, 0x80, 191, 0, 0, 128, 63]
+    // console.log('float count:', this.countFloats(buffer))
+    // console.log('testing readFloat:', this.readFloat(buffer, 0), this.readFloat(buffer, 1))
 
-    // Treat that same buffer as a complex value:
-    console.log('complex count:', this.countComplex(buffer))
-    console.log('readComplex from buffer:', this.readComplex(buffer, 0))
+    // // Treat that same buffer as a complex value:
+    // console.log('complex count:', this.countComplex(buffer))
+    // console.log('readComplex from buffer:', this.readComplex(buffer, 0))
 
 
     const canvas = this.refs.canvas
@@ -196,9 +219,13 @@ export default class SDR extends Component {
       const cutoff = Math.min(this.state.rfData.length, 1024)
       ctx.beginPath()
       ctx.moveTo(0, 0)
-      this.state.rfData.forEach((value, i) => {
-        console.log('data:', i, value)
-      })
+      console.log('0th float:', this.readFloat(this.state.rfData, 0))
+      for (let i = 0; i < 4; i+=1) {
+        console.log('data:', i, this.state.rfData[i])
+      }
+      // this.state.rfData.forEach((value, i) => {
+      //   console.log('data:', i, value)
+      // })
       // for (let i = 0; i < cutoff/4; i+=1) {
       // //   // ctx.fillRect(this.state.rfData[i], i, 1, 1)
       // //   if (i < 4) {
